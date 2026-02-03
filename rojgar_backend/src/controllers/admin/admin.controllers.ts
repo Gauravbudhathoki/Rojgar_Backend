@@ -1,63 +1,142 @@
-import { AdminUserService } from "../../services/admin/admin.user.services";
-import { Request, Response} from "express";
-import { CreateUserDto } from "../../dtos/user.dto";
+
+import { UserModel, IUser } from "../../models/user.model";
 import { HttpError } from "../../errors/http-error";
-let adminUserService = new AdminUserService();
+import bcrypt from "bcryptjs";
 
-export class AdminUserController{
-    async createUser(req: Request, res: Response){
-        try{
-            const parsed = CreateUserDto.safeParse(req.body);
-            if(!parsed.success){
-                return res.status(400).json({ success: false, errors: parsed.error.format() });
-            }
-            const newUser = await adminUserService.createUser(parsed.data);
-            let userObj: any = newUser;
-            if(typeof newUser.toObject === "function") userObj = newUser.toObject();
-            const { password, ...userWithoutPassword } = userObj;
-            return res.status(201).json({success:true, data: userWithoutPassword, message: "User created successfully"});
-        }catch(error: any){
-            return res.status(error?.statusCode || 500).json({success:false, message: error.message || "Internal Server Error"});
-        }
-    }
 
-    async getAllUsers(req: Request, res: Response){
-        try{
-            const users = await adminUserService.getAllUsers();
-            return res.status(200).json({success:true, data: users, message: "Users fetched successfully"});
-        }catch(error: any){
-            return res.status(error?.statusCode || 500).json({success:false, message: error.message || "Internal Server Error"});
-        }
-    }
+export class AdminUserService {
+  async createUser(userData: any): Promise<IUser> {
+    try {
+      
+      const existingUser = await UserModel.findOne({ 
+        $or: [{ email: userData.email }, { phone: userData.phone }] 
+      });
 
-    async getUserById(req: Request, res: Response){
-        try{
-            const userId = req.params.id; //from url /api/admin/users/:id
-            const user = await adminUserService.getUserById(userId);
-            res.status(200).json({success:true,data: user, message: "User fetched successfully"});
-        }catch(error:Error | any){
-            return res.status(error.statusCode || 500).json({success:false, message: error.message || "Internal Server Error"});
-        }
-    }
+      if (existingUser) {
+        throw new HttpError(400, "User with this email or phone already exists");
+      }
 
-    async updateOneUser(req: Request, res: Response){
-        try{
-            const userId = req.params.id;
-            const updateData = req.body;
-            const updated = await adminUserService.updateUser(userId, updateData);
-            return res.status(200).json({success:true, data: updated, message: "User updated successfully"});
-        }catch(error: any){
-            return res.status(error?.statusCode || 500).json({success:false, message: error.message || "Internal Server Error"});
-        }
-    }
+      
+      if (userData.password) {
+        const salt = await bcrypt.genSalt(10);
+        userData.password = await bcrypt.hash(userData.password, salt);
+      }
 
-    async deleteOneUser(req: Request, res: Response){
-        try{
-            const userId = req.params.id;
-            await adminUserService.deleteUser(userId);
-            return res.status(200).json({success:true, message: "User deleted successfully"});
-        }catch(error: any){
-            return res.status(error?.statusCode || 500).json({success:false, message: error.message || "Internal Server Error"});
-        }
+      
+      const newUser = await UserModel.create(userData);
+      return newUser;
+    } catch (error: any) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(500, error.message || "Error creating user");
     }
+  }
+
+  async getAllUsers(filters?: any): Promise<IUser[]> {
+    try {
+      const query = filters || {};
+      const users = await UserModel.find(query)
+        .select("-password")
+        .sort({ createdAt: -1 });
+      return users;
+    } catch (error: any) {
+      throw new HttpError(500, error.message || "Error fetching users");
+    }
+  }
+
+  async getUserById(userId: string): Promise<IUser> {
+    try {
+      const user = await UserModel.findById(userId).select("-password");
+      
+      if (!user) {
+        throw new HttpError(404, "User not found");
+      }
+
+      return user;
+    } catch (error: any) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(500, error.message || "Error fetching user");
+    }
+  }
+
+  async updateUser(userId: string, updateData: any): Promise<IUser> {
+    try {
+      
+      if (updateData.password) {
+        delete updateData.password;
+      }
+
+      
+      if (updateData.email || updateData.phone) {
+        const existingUser = await UserModel.findOne({
+          _id: { $ne: userId },
+          $or: [
+            ...(updateData.email ? [{ email: updateData.email }] : []),
+            ...(updateData.phone ? [{ phone: updateData.phone }] : [])
+          ]
+        });
+
+        if (existingUser) {
+          throw new HttpError(400, "Email or phone already in use");
+        }
+      }
+
+      const updatedUser = await UserModel.findByIdAndUpdate(
+        userId,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      ).select("-password");
+
+      if (!updatedUser) {
+        throw new HttpError(404, "User not found");
+      }
+
+      return updatedUser;
+    } catch (error: any) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(500, error.message || "Error updating user");
+    }
+  }
+
+  async deleteUser(userId: string): Promise<{ message: string }> {
+    try {
+      const user = await UserModel.findByIdAndDelete(userId);
+
+      if (!user) {
+        throw new HttpError(404, "User not found");
+      }
+
+      return { message: "User deleted successfully" };
+    } catch (error: any) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(500, error.message || "Error deleting user");
+    }
+  }
+
+  async getUsersByRole(role: string): Promise<IUser[]> {
+    try {
+      const users = await UserModel.find({ role })
+        .select("-password")
+        .sort({ createdAt: -1 });
+      return users;
+    } catch (error: any) {
+      throw new HttpError(500, error.message || "Error fetching users by role");
+    }
+  }
+
+  async searchUsers(searchTerm: string): Promise<IUser[]> {
+    try {
+      const users = await UserModel.find({
+        $or: [
+          { name: { $regex: searchTerm, $options: "i" } },
+          { email: { $regex: searchTerm, $options: "i" } },
+          { phone: { $regex: searchTerm, $options: "i" } }
+        ]
+      })
+        .select("-password")
+        .limit(20);
+      return users;
+    } catch (error: any) {
+      throw new HttpError(500, error.message || "Error searching users");
+    }
+  }
 }
