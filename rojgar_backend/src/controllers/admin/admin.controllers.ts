@@ -1,142 +1,259 @@
+// FILE: src/controllers/admin/admin.controller.ts
 
-import { UserModel, IUser } from "../../models/user.model";
-import { HttpError } from "../../errors/http-error";
-import bcrypt from "bcryptjs";
+import { Request, Response, NextFunction } from "express";
+import { UserService } from "../../services/admin/user.services";
+import { AdminService } from "../../services/admin/admin.user.services";
 
+const adminService = new AdminService();
+const userService = new UserService();
 
-export class AdminUserService {
-  async createUser(userData: any): Promise<IUser> {
+export class AdminController {
+  
+  async registerAdmin(req: Request, res: Response, next: NextFunction) {
     try {
-      
-      const existingUser = await UserModel.findOne({ 
-        $or: [{ email: userData.email }, { phone: userData.phone }] 
+      const validatedData = req.body;
+      const newAdmin = await adminService.registerAdmin(validatedData);
+
+      const obj = typeof newAdmin.toObject === "function" ? newAdmin.toObject() : newAdmin;
+      const { password, ...adminResponse } = obj;
+
+      res.status(201).json({
+        success: true,
+        message: "Admin registered successfully",
+        data: adminResponse,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async loginAdmin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const loginData = req.body;
+      const result = await adminService.loginAdmin(loginData);
+
+      const obj = typeof result.admin.toObject === "function" ? result.admin.toObject() : result.admin;
+      const { password, ...adminResponse } = obj;
+
+      res.status(200).json({
+        success: true,
+        message: "Admin login successful",
+        data: {
+          token: result.token,
+          admin: adminResponse,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAdminProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      const adminId = (req as any).user.id;
+      const admin = await adminService.getAdminById(adminId);
+
+      if (!admin) {
+        return res.status(404).json({ success: false, message: "Admin not found" });
+      }
+
+      const obj = typeof admin.toObject === "function" ? admin.toObject() : admin;
+      const { password, ...adminResponse } = obj;
+
+      res.status(200).json({
+        success: true,
+        message: "Admin profile retrieved successfully",
+        data: adminResponse,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateAdminProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      const adminId = (req as any).user.id;
+      const updateData = req.body;
+
+      if (updateData.password) delete updateData.password;
+
+      const updatedAdmin = await adminService.updateAdminProfile(adminId, updateData);
+
+      if (!updatedAdmin) {
+        return res.status(404).json({ success: false, message: "Admin not found" });
+      }
+
+      const obj = typeof updatedAdmin.toObject === "function" ? updatedAdmin.toObject() : updatedAdmin;
+      const { password, ...adminResponse } = obj;
+
+      res.status(200).json({
+        success: true,
+        message: "Admin profile updated successfully",
+        data: adminResponse,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAllAdmins(req: Request, res: Response, next: NextFunction) {
+    try {
+      const admins = await adminService.getAllAdmins();
+      if (!Array.isArray(admins)) return res.json({ success: true, message: "No admins found", data: [] });
+
+      const adminsResponse = admins.map((admin: any) => {
+        const obj = typeof admin.toObject === "function" ? admin.toObject() : admin;
+        const { password, ...rest } = obj;
+        return rest;
       });
 
-      if (existingUser) {
-        throw new HttpError(400, "User with this email or phone already exists");
-      }
-
-      
-      if (userData.password) {
-        const salt = await bcrypt.genSalt(10);
-        userData.password = await bcrypt.hash(userData.password, salt);
-      }
-
-      
-      const newUser = await UserModel.create(userData);
-      return newUser;
-    } catch (error: any) {
-      if (error instanceof HttpError) throw error;
-      throw new HttpError(500, error.message || "Error creating user");
+      res.status(200).json({
+        success: true,
+        message: "All admins retrieved successfully",
+        data: adminsResponse,
+      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async getAllUsers(filters?: any): Promise<IUser[]> {
+  async getAdminById(req: Request, res: Response, next: NextFunction) {
     try {
-      const query = filters || {};
-      const users = await UserModel.find(query)
-        .select("-password")
-        .sort({ createdAt: -1 });
-      return users;
-    } catch (error: any) {
-      throw new HttpError(500, error.message || "Error fetching users");
+      const { adminId } = req.params;
+      const admin = await adminService.getAdminById(adminId);
+
+      if (!admin) return res.status(404).json({ success: false, message: "Admin not found" });
+
+      const obj = typeof admin.toObject === "function" ? admin.toObject() : admin;
+      const { password, ...adminResponse } = obj;
+
+      res.status(200).json({
+        success: true,
+        message: "Admin retrieved successfully",
+        data: adminResponse,
+      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async getUserById(userId: string): Promise<IUser> {
+  async deleteAdmin(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserModel.findById(userId).select("-password");
-      
-      if (!user) {
-        throw new HttpError(404, "User not found");
-      }
+      const { adminId } = req.params;
+      const result = await adminService.deleteAdmin(adminId);
 
-      return user;
-    } catch (error: any) {
-      if (error instanceof HttpError) throw error;
-      throw new HttpError(500, error.message || "Error fetching user");
+      res.status(200).json({
+        success: true,
+        message: "Admin deleted successfully",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async updateUser(userId: string, updateData: any): Promise<IUser> {
+  async getAllUsers(req: Request, res: Response, next: NextFunction) {
     try {
-      
-      if (updateData.password) {
-        delete updateData.password;
-      }
+      const users = await userService.getAllUsers();
+      if (!Array.isArray(users)) return res.json({ success: true, message: "No users found", data: [] });
 
-      
-      if (updateData.email || updateData.phone) {
-        const existingUser = await UserModel.findOne({
-          _id: { $ne: userId },
-          $or: [
-            ...(updateData.email ? [{ email: updateData.email }] : []),
-            ...(updateData.phone ? [{ phone: updateData.phone }] : [])
-          ]
-        });
+      const usersResponse = users.map((user: any) => {
+        const obj = typeof user.toObject === "function" ? user.toObject() : user;
+        const { password, ...rest } = obj;
+        return rest;
+      });
 
-        if (existingUser) {
-          throw new HttpError(400, "Email or phone already in use");
-        }
-      }
-
-      const updatedUser = await UserModel.findByIdAndUpdate(
-        userId,
-        { $set: updateData },
-        { new: true, runValidators: true }
-      ).select("-password");
-
-      if (!updatedUser) {
-        throw new HttpError(404, "User not found");
-      }
-
-      return updatedUser;
-    } catch (error: any) {
-      if (error instanceof HttpError) throw error;
-      throw new HttpError(500, error.message || "Error updating user");
+      res.status(200).json({
+        success: true,
+        message: "All users retrieved successfully",
+        data: usersResponse,
+      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async deleteUser(userId: string): Promise<{ message: string }> {
+  async getUserById(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = await UserModel.findByIdAndDelete(userId);
+      const { userId } = req.params;
+      const user = await userService.getUserById(userId);
+      if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-      if (!user) {
-        throw new HttpError(404, "User not found");
+      const obj = typeof user.toObject === "function" ? user.toObject() : user;
+      const { password, ...userResponse } = obj;
+
+      res.status(200).json({
+        success: true,
+        message: "User retrieved successfully",
+        data: userResponse,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { userId } = req.params;
+      const result = await userService.deleteUser(userId);
+
+      res.status(200).json({
+        success: true,
+        message: "User deleted successfully",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userData = req.body;
+
+      if (req.file) {
+        userData.profilePicture = req.file.filename;
       }
 
-      return { message: "User deleted successfully" };
-    } catch (error: any) {
-      if (error instanceof HttpError) throw error;
-      throw new HttpError(500, error.message || "Error deleting user");
+      const newUser = await userService.registerUser(userData);
+
+      if (newUser.profilePicture) {
+        newUser.profilePicture = `${req.protocol}://${req.get("host")}/profile_pictures/${newUser.profilePicture}`;
+      }
+
+      res.status(201).json({
+        success: true,
+        message: "User created successfully",
+        data: newUser,
+      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  async getUsersByRole(role: string): Promise<IUser[]> {
+  async updateUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const users = await UserModel.find({ role })
-        .select("-password")
-        .sort({ createdAt: -1 });
-      return users;
-    } catch (error: any) {
-      throw new HttpError(500, error.message || "Error fetching users by role");
-    }
-  }
+      const { userId } = req.params;
+      const updateData = req.body;
 
-  async searchUsers(searchTerm: string): Promise<IUser[]> {
-    try {
-      const users = await UserModel.find({
-        $or: [
-          { name: { $regex: searchTerm, $options: "i" } },
-          { email: { $regex: searchTerm, $options: "i" } },
-          { phone: { $regex: searchTerm, $options: "i" } }
-        ]
-      })
-        .select("-password")
-        .limit(20);
-      return users;
-    } catch (error: any) {
-      throw new HttpError(500, error.message || "Error searching users");
+      if (req.file) {
+        updateData.profilePicture = req.file.filename;
+      }
+
+      const updatedUser = await userService.updateUser(userId, updateData);
+      if (!updatedUser) return res.status(404).json({ success: false, message: "User not found" });
+
+      if (updatedUser.profilePicture) {
+        updatedUser.profilePicture = `${req.protocol}://${req.get("host")}/profile_pictures/${updatedUser.profilePicture}`;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "User updated successfully",
+        data: updatedUser,
+      });
+    } catch (error) {
+      next(error);
     }
   }
 }

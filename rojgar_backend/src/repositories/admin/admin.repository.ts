@@ -1,39 +1,45 @@
-import { IUser, UserModel } from "../../models/user.model";
 
-export interface IUserRepository {
-    getUserByEmail(email: string): Promise<IUser | null>;
-    createUser(data: Partial<IUser>): Promise<IUser>; 
-    getUserById(id: string): Promise<IUser | null>; 
-    getAllUsers(): Promise<IUser[]>;
-    updateOneUser(id: string, data: Partial<IUser>): Promise<IUser | null>; 
-    deleteOneUser(id: string): Promise<boolean | null>; 
+
+import { IAdmin, AdminModel } from "../../models/admin/admin.model"; 
+
+export interface IAdminRepository {
+    getUserbyEmail(email: string): Promise<IAdmin | null>;
+    createUser(data: Partial<IAdmin>): Promise<IAdmin>; 
+    getUserById(id: string): Promise<IAdmin | null>; 
+    getAllAdmins(): Promise<IAdmin[]>;
+    updateOneAdmin(id: string, data: Partial<IAdmin>): Promise<IAdmin | null>; 
+    deleteOneAdmin(id: string): Promise<boolean | null>; 
 }
 
-export class UserRepository implements IUserRepository {
-
-    async createUser(data: Partial<IUser>): Promise<IUser> {
-        const user = new UserModel(data); 
-        return await user.save();
+export class AdminRepository implements IAdminRepository {
+ 
+    async createUser(data: Partial<IAdmin>): Promise<IAdmin> {
+        const admin = new AdminModel(data); 
+        return await admin.save();
     }
 
-    async getUserByEmail(email: string): Promise<IUser | null> {
-        return await UserModel.findOne({ "email": email });
+    async getUserbyEmail(email: string): Promise<IAdmin | null> {
+        const admin = await AdminModel.findOne({ email: email });
+        return admin; 
     }
 
-    async getUserById(id: string): Promise<IUser | null> {
-        return await UserModel.findById(id);
+    async getUserById(id: string): Promise<IAdmin | null> {
+        const admin = await AdminModel.findById(id);
+        return admin; 
     }
 
-    async getAllUsers(): Promise<IUser[]> {
-        return await UserModel.find();
+    async getAllAdmins(): Promise<IAdmin[]> {
+        const admins = await AdminModel.find();
+        return admins;
     }
 
-    async updateOneUser(id: string, data: Partial<IUser>): Promise<IUser | null> {
-        return await UserModel.findByIdAndUpdate(id, data, { new: true });
+    async updateOneAdmin(id: string, data: Partial<IAdmin>): Promise<IAdmin | null> {
+        const updatedAdmin = await AdminModel.findByIdAndUpdate(id, data, { new: true });
+        return updatedAdmin; 
     }
 
-    async deleteOneUser(id: string): Promise<boolean | null> {
-        const result = await UserModel.findByIdAndDelete(id); 
+    async deleteOneAdmin(id: string): Promise<boolean | null> {
+        const result = await AdminModel.findByIdAndDelete(id); 
         return result ? true : null; 
     }
 }

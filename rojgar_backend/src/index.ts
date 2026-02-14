@@ -1,41 +1,21 @@
-import express, { Application, Request, Response } from 'express';
-import bodyParser from "body-parser";
 import dotenv from 'dotenv';
-import cors from 'cors';
-import { PORT_NUMBER } from './config';
-import { connectDatabase } from './database/mongodb';
-import authRoutes from './routes/auth.route';
-
 dotenv.config();
 
-const app: Application = express();
+import app from './app';    
+import { PORT, MONGODB_URI } from './config/env';
+import { connectDatabase } from './database/mongodb';
 
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-app.use((req: Request, res: Response, next) => {
-  console.log(`${req.method} ${req.path}`, req.body);
-  next();
-});
-
-app.get('/', (req: Request, res: Response) => {
-  res.json({ message: 'Server is running' });
-});
-
-app.use('/api/auth', authRoutes);
-
-async function start() {
+async function startServer() {
+  try {
     await connectDatabase();
-    app.listen(PORT_NUMBER, () => {
-        console.log(`Server running at http://localhost:${PORT_NUMBER}`);
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`MongoDB connected at: ${MONGODB_URI}`);
     });
+  } catch (error) {
+    console.error('Server start error:', error);
+    process.exit(1);
+  }
 }
 
-start().catch((error) => console.log(error));
+startServer();

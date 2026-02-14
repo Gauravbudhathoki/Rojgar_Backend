@@ -1,44 +1,50 @@
-
 import { z } from "zod";
 
-export const CreateUserDto = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
+// Base user schema to reuse in multiple DTOs
+export const UserSchema = z.object({
+  username: z.string().min(2, "Username is required"),
   email: z.string().email("Invalid email format"),
-  phone: z.string().min(10, "Phone must be at least 10 digits"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["jobseeker", "employer", "admin"]).optional().default("jobseeker"),
-  profilePicture: z.string().optional(),
-  address: z.object({
-    street: z.string().optional(),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    pincode: z.string().optional(),
-    country: z.string().optional().default("India")
-  }).optional(),
-  skills: z.array(z.string()).optional(),
-  experience: z.number().optional(),
-  education: z.string().optional(),
-  isActive: z.boolean().optional().default(true)
+  profilePicture: z.string().url("Invalid URL format").optional().nullable(),
+  role: z.enum(["user", "admin"]).optional().default("user"),
+  imageUrl: z.string().optional().nullable(),
 });
 
-export const UpdateUserDto = z.object({
-  name: z.string().min(2).optional(),
-  email: z.string().email().optional(),
-  phone: z.string().min(10).optional(),
-  role: z.enum(["jobseeker", "employer", "admin"]).optional(),
-  profilePicture: z.string().optional(),
-  address: z.object({
-    street: z.string().optional(),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    pincode: z.string().optional(),
-    country: z.string().optional()
-  }).optional(),
-  skills: z.array(z.string()).optional(),
-  experience: z.number().optional(),
-  education: z.string().optional(),
-  isActive: z.boolean().optional()
+// CREATE USER DTO
+export const CreateUserDto = UserSchema.pick({
+  username: true,
+  email: true,
+  password: true,
+}).extend({
+  confirmPassword: z.string().min(6, "Confirm password is required"),
+}).refine(
+  (data) => data.password === data.confirmPassword,
+  {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  }
+);
+
+export type CreateUserDto = z.infer<typeof CreateUserDto>;
+
+// LOGIN DTO
+export const LoginUserDto = z.object({
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(6, "Password is required"),
 });
 
-export type CreateUserDtoType = z.infer<typeof CreateUserDto>;
-export type UpdateUserDtoType = z.infer<typeof UpdateUserDto>;
+export type LoginUserDto = z.infer<typeof LoginUserDto>;
+
+// UPDATE USER DTO
+// Use partial() so all fields are optional for updates
+export const UpdateUserDto = UserSchema.partial().extend({
+  confirmPassword: z.string().min(6, "Confirm password is required").optional(),
+}).refine(
+  (data) => !data.confirmPassword || data.password === data.confirmPassword,
+  {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  }
+);
+
+export type UpdateUserDto = z.infer<typeof UpdateUserDto>;

@@ -1,52 +1,49 @@
-import multer from "multer";
 import path from "path";
 import fs from "fs";
+import multer, { FileFilterCallback } from "multer";
 import { Request } from "express";
 import { v4 as uuidv4 } from "uuid";
 
-const maxSize = 5 * 1024 * 1024;
-const UPLOAD_BASE_DIR = path.join(process.cwd(), "public", "uploads");
-const PROFILE_DIR = path.join(UPLOAD_BASE_DIR, "profiles");
-const LOGO_DIR = path.join(UPLOAD_BASE_DIR, "logos");
+const MAX_SIZE = 2 * 1024 * 1024;
 
+const PROFILE_UPLOAD_DIR = path.join(process.cwd(), "public", "profile_pictures");
 
-
-if (!fs.existsSync(PROFILE_DIR)) fs.mkdirSync(PROFILE_DIR, { recursive: true });
-if (!fs.existsSync(LOGO_DIR)) fs.mkdirSync(LOGO_DIR, { recursive: true });
+if (!fs.existsSync(PROFILE_UPLOAD_DIR)) {
+  fs.mkdirSync(PROFILE_UPLOAD_DIR, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: (req: Request, file: Express.Multer.File, cb) => {
     if (file.fieldname === "profilePicture") {
-      cb(null, PROFILE_DIR);
-    } else if (file.fieldname === "companyLogo") {
-      cb(null, LOGO_DIR);
+      cb(null, PROFILE_UPLOAD_DIR);
     } else {
-      cb(new Error("Invalid field name"), "");
+      cb(new Error("Invalid field name for upload."), "");
     }
   },
   filename: (req: Request, file: Express.Multer.File, cb) => {
     const ext = path.extname(file.originalname);
-    const prefix = file.fieldname === "profilePicture" ? "user" : "corp";
-    cb(null, `${prefix}-${uuidv4()}-${Date.now()}${ext}`);
+    const uniqueName = `pro-pic-${uuidv4()}-${Date.now()}${ext}`;
+    cb(null, uniqueName);
   },
 });
 
-const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
-  
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error("Only .png, .jpg, .jpeg and .webp formats are allowed"));
+const fileFilter = (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+  if (file.fieldname !== "profilePicture") {
+    return cb(new Error("Invalid field name for upload."));
   }
+
+  if (!file.mimetype.startsWith("image/")) {
+    return cb(new Error("Only image files are allowed."));
+  }
+
+  cb(null, true);
 };
 
-export const uploadMedia = multer({
+export const uploadProfilePicture = multer({
   storage,
   fileFilter,
-  limits: { fileSize: maxSize },
+  limits: { fileSize: MAX_SIZE },
 });
 
-export const uploadProfilePicture = uploadMedia;
-export const uploadCompanyLogo = uploadMedia;
-export const upload = uploadMedia;
+export const uploadImage = uploadProfilePicture;
+export const upload = uploadProfilePicture;
