@@ -6,12 +6,14 @@ import fs from "fs";
 interface AuthRequest extends Request {
   user?: {
     id: string;
+    _id: any;
+    role: "user" | "admin";
   };
   file?: Express.Multer.File;
 }
 
 export const uploadProfilePicture = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) => {
   try {
@@ -22,20 +24,33 @@ export const uploadProfilePicture = async (
       });
     }
 
-    const userId = req.params.userId;
+    const userId = req.user?.id;
     
-    // Use findByIdAndUpdate with validateBeforeSave: false to avoid validation errors
+    if (!userId) {
+      const uploadedFilePath = path.join(
+        process.cwd(),
+        "public/profile_pictures",
+        req.file.filename
+      );
+      if (fs.existsSync(uploadedFilePath)) {
+        fs.unlinkSync(uploadedFilePath);
+      }
+      return res.status(401).json({ 
+        success: false, 
+        message: "Unauthorized" 
+      });
+    }
+    
     const user = await User.findByIdAndUpdate(
       userId,
       { profilePicture: req.file.filename },
-      { new: true, runValidators: false } // ← This prevents validation
+      { new: true, runValidators: false }
     );
 
     if (!user) {
-      // Delete uploaded file if user not found
       const uploadedFilePath = path.join(
-        __dirname,
-        "../public/profile_pictures",
+        process.cwd(),
+        "public/profile_pictures",
         req.file.filename
       );
       if (fs.existsSync(uploadedFilePath)) {
@@ -48,15 +63,14 @@ export const uploadProfilePicture = async (
       });
     }
 
-    // Delete old profile picture if it exists
     if (
       user.profilePicture &&
       user.profilePicture !== "default-profile.png" &&
       user.profilePicture !== req.file.filename
     ) {
       const oldImagePath = path.join(
-        __dirname,
-        "../public/profile_pictures",
+        process.cwd(),
+        "public/profile_pictures",
         user.profilePicture
       );
 
@@ -80,11 +94,10 @@ export const uploadProfilePicture = async (
       },
     });
   } catch (error) {
-    // Clean up uploaded file on error
     if (req.file) {
       const uploadedFilePath = path.join(
-        __dirname,
-        "../public/profile_pictures",
+        process.cwd(),
+        "public/profile_pictures",
         req.file.filename
       );
       if (fs.existsSync(uploadedFilePath)) {
@@ -103,9 +116,17 @@ export const uploadProfilePicture = async (
   }
 };
 
-export const updateUser = async (req: Request, res: Response) => {
+export const updateUser = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.params.userId;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Unauthorized" 
+      });
+    }
+    
     const { profilePicture } = req.body as {
       profilePicture: string;
     };
@@ -113,7 +134,7 @@ export const updateUser = async (req: Request, res: Response) => {
     const user = await User.findByIdAndUpdate(
       userId,
       { profilePicture },
-      { new: true, runValidators: false } // Prevent validation on partial update
+      { new: true, runValidators: false }
     );
 
     if (!user) {
@@ -146,7 +167,14 @@ export const getMyProfile = async (
   res: Response
 ) => {
   try {
-    const user = await User.findById(req.user?.id);
+    if (!req.user?.id) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Unauthorized" 
+      });
+    }
+    
+    const user = await User.findById(req.user.id);
 
     if (!user) {
       return res.status(404).json({ 

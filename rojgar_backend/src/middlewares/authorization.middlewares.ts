@@ -7,7 +7,11 @@ import { AdminModel as Admin } from "../models/admin/admin.model";
 declare global {
   namespace Express {
     interface Request {
-      user?: any;
+      user?: {
+        id: string;
+        _id: any;
+        role: "user" | "admin";
+      };
       isAdmin?: boolean;
     }
   }
@@ -51,7 +55,7 @@ export const authorizedMiddleware = async (
     }
 
     req.user = {
-      id: user._id,
+      id: user._id.toString(),
       _id: user._id,
       role: isAdmin ? "admin" : "user",
     };

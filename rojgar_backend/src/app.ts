@@ -3,10 +3,10 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import path from 'path';
 import authRoutes from './routes/auth.route';
+import jobRoutes from './routes/job.routes';
 
 const app: Application = express();
 
-// CORS setup
 const corsOptions = {
   origin: [
     'http://localhost:3000',
@@ -24,26 +24,23 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Body parser
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Logger middleware
 app.use((req: Request, res: Response, next) => {
   console.log(`${req.method} ${req.path}`);
   next();
 });
 
-// Static folders
 app.use('/profile_pictures', express.static(path.join(process.cwd(), 'public/profile_pictures')));
+app.use('/job_logos', express.static(path.join(process.cwd(), 'public/job_logos')));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-// Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/jobs', jobRoutes);
 
-// Default endpoint
 app.get('/', (req: Request, res: Response) => {
-  res.status(200).json({ success: true, message: "GoalNepal API is running" });
+  res.status(200).json({ success: true, message: "Rojgar API is running" });
 });
 
 export default app;
