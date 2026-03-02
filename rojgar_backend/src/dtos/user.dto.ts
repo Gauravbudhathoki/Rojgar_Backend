@@ -7,6 +7,7 @@ export const UserSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   profilePicture: z.string().url("Invalid URL format").optional().nullable(),
   role: z.enum(["user", "admin"]).optional().default("user"),
+  status: z.enum(["active", "inactive", "banned"]).optional().default("active"),
   imageUrl: z.string().optional().nullable(),
 });
 

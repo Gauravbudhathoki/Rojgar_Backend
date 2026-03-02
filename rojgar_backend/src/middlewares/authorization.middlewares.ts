@@ -23,48 +23,49 @@ export const authorizedMiddleware = async (
   next: NextFunction
 ) => {
   const authHeader = req.headers.authorization;
+  console.log("AUTH HEADER:", authHeader);
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Not authorized" });
+    return res.status(401).json({ success: false, message: "Not authorized" });
   }
 
   try {
     const token = authHeader.split(" ")[1];
-
-    const decoded = jwt.verify(token, JWT_SECRET) as {
-      id: string;
-    };
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
 
     if (!decoded || !decoded.id) {
-      return res.status(401).json({ message: "Invalid token" });
+      return res.status(401).json({ success: false, message: "Invalid token" });
     }
 
-    let user = await User.findById(decoded.id);
-    let isAdmin = false;
-
-    if (!user) {
-      const admin = await Admin.findById(decoded.id);
-      if (admin) {
-        user = admin;
-        isAdmin = true;
-      }
+    const adminUser = await Admin.findById(decoded.id);
+    if (adminUser) {
+      req.user = {
+        id: adminUser._id.toString(),
+        _id: adminUser._id,
+        role: "admin",
+      };
+      req.isAdmin = true;
+      return next();
     }
 
-    if (!user) {
-      return res.status(401).json({ message: "User no longer exists" });
+    const regularUser = await User.findById(decoded.id);
+    if (!regularUser) {
+      return res.status(401).json({ success: false, message: "User no longer exists" });
     }
+
+    const role = regularUser.role?.trim() as "user" | "admin";
+    const isAdmin = role === "admin";
 
     req.user = {
-      id: user._id.toString(),
-      _id: user._id,
-      role: isAdmin ? "admin" : "user",
+      id: regularUser._id.toString(),
+      _id: regularUser._id,
+      role,
     };
-
     req.isAdmin = isAdmin;
 
-    next();
+    return next();
   } catch {
-    return res.status(401).json({ message: "Invalid token" });
+    return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
 

@@ -1,5 +1,3 @@
-// FILE: src/repositories/user/user.repository.ts
-
 import { IUser, UserModel } from "../models/user.model";
 
 export interface IUserRepository {
@@ -22,28 +20,23 @@ export class UserRepository implements IUserRepository {
     }
 
     async getUserbyEmail(email: string): Promise<IUser | null> {
-        const user = await UserModel.findOne({ email: email });
-        return user;
+        return await UserModel.findOne({ email }).select("+password");
     }
 
     async getUserbyUsername(username: string): Promise<IUser | null> {
-        const user = await UserModel.findOne({ username: username });
-        return user;
+        return await UserModel.findOne({ username });
     }
 
     async getUserById(id: string): Promise<IUser | null> {
-        const user = await UserModel.findById(id);
-        return user;
+        return await UserModel.findById(id);
     }
 
     async getAllUsers(): Promise<IUser[]> {
-        const users = await UserModel.find();
-        return users;
+        return await UserModel.find();
     }
 
     async updateUser(id: string, data: Partial<IUser>): Promise<IUser | null> {
-        const updatedUser = await UserModel.findByIdAndUpdate(id, data, { new: true });
-        return updatedUser;
+        return await UserModel.findByIdAndUpdate(id, data, { new: true });
     }
 
     async deleteUser(id: string): Promise<boolean | null> {
@@ -52,21 +45,14 @@ export class UserRepository implements IUserRepository {
     }
 
     async getUsersByRole(role: 'admin' | 'user'): Promise<IUser[]> {
-        const users = await UserModel.find({ role: role });
-        return users;
+        return await UserModel.find({ role });
     }
 
     async verifyUser(id: string): Promise<IUser | null> {
-        const verifiedUser = await UserModel.findByIdAndUpdate(
-            id,
-            { isVerified: true },
-            { new: true }
-        );
-        return verifiedUser;
+        return await UserModel.findByIdAndUpdate(id, { isVerified: true }, { new: true });
     }
 
     async getUserByPhone(phone: string): Promise<IUser | null> {
-        const user = await UserModel.findOne({ phone: phone });
-        return user;
+        return await UserModel.findOne({ phone });
     }
-} 
+}

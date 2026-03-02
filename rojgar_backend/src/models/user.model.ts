@@ -7,6 +7,8 @@ export interface IUser extends Document {
   password: string;
   profilePicture?: string;
   role?: string;
+  // account status can be managed by admins
+  status?: "active" | "inactive" | "banned";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +39,11 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: ["user", "admin"],
       default: "user",
+    },
+    status: {
+      type: String,
+      enum: ["active", "inactive", "banned"],
+      default: "active",
     },
   },
   {
