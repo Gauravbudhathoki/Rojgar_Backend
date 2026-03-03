@@ -7,8 +7,9 @@ export interface IUser extends Document {
   password: string;
   profilePicture?: string;
   role?: string;
-  // account status can be managed by admins
   status?: "active" | "inactive" | "banned";
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +45,14 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: ["active", "inactive", "banned"],
       default: "active",
+    },
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
     },
   },
   {

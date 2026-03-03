@@ -5,6 +5,7 @@ import path from 'path';
 import authRoutes from './routes/auth.route';
 import jobRoutes from './routes/job.routes';
 import adminRoutes from './routes/admin/admin.routes';
+import profileRoutes from './routes/profile.route';
 
 const app: Application = express();
 
@@ -27,6 +28,7 @@ app.use('/job_logos', express.static(path.join(process.cwd(), 'public/job_logos'
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/admin', adminRoutes);
 

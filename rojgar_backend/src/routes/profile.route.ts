@@ -12,19 +12,19 @@ const router = Router();
 
 router.get("/me", authorizedMiddleware, getMyProfile);
 
-router.get("/:userId", authorizedMiddleware, getUserById);
-
 router.put(
-  "/profile",
+  "/upload",
   authorizedMiddleware,
   upload.single("profilePicture"),
   uploadProfilePicture
 );
 
 router.patch(
-  "/profile",
+  "/update",
   authorizedMiddleware,
   updateUser
 );
+
+router.get("/:userId", authorizedMiddleware, getUserById);
 
 export default router;
