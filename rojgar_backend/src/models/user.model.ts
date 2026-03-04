@@ -8,6 +8,8 @@ export interface IUser extends Document {
   profilePicture?: string;
   role?: string;
   status?: "active" | "inactive" | "banned";
+  phone?: string;
+  isVerified?: boolean;
   passwordResetToken?: string;
   passwordResetExpires?: Date;
   createdAt: Date;
@@ -45,6 +47,16 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: ["active", "inactive", "banned"],
       default: "active",
+    },
+    phone: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true, // allow multiple docs without phone
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
     },
     passwordResetToken: {
       type: String,
